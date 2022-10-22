@@ -1,10 +1,12 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <Windows.h>
 #include <iostream>
 #include <string>
 
 constexpr const char* cvWindowName = "Super Hexagon | CV";
+constexpr float crop = 0.1;
 
 cv::Mat captureScreen(HWND hwnd)
 {
@@ -24,8 +26,8 @@ cv::Mat captureScreen(HWND hwnd)
 
 	srcheight = windowSize.bottom;
 	srcwidth = windowSize.right;
-	height = srcheight/5;
-	width = srcwidth/5;
+	height = srcheight/3;
+	width = srcwidth/3;
 
 	src.create(height, width, CV_8UC4);
 
@@ -44,7 +46,8 @@ cv::Mat captureScreen(HWND hwnd)
 
 	SelectObject(hwindowCompatibleDC, hbwindow);
 
-	StretchBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, 0, 0, srcwidth, srcheight, SRCCOPY);
+	StretchBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, srcwidth * crop, 
+		srcheight * crop, srcwidth * (1 - crop * 2), srcheight * (1 - crop * 2), SRCCOPY);
 	GetDIBits(hwindowCompatibleDC, hbwindow, 0, height, src.data, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
 
 	DeleteObject(hbwindow);
@@ -65,8 +68,19 @@ int main()
 
 	while (key != 27)
 	{
-		cv::Mat src = captureScreen(hwndWindow);
-		cv::imshow(cvWindowName, src);
+		//Capture images
+		cv::Mat src = captureScreen(hwndWindow), grayImg;
+		
+		// Extract features
+		cv::cvtColor(src, grayImg, cv::COLOR_BGR2HSV);
+		cv::Mat hsvChannels[3];
+		cv::split(grayImg, hsvChannels);
+		grayImg = hsvChannels[2];
+		cv::threshold(grayImg, grayImg, 120, 255, 0);
+
+		//Display window
+		cv::imshow(cvWindowName, grayImg);
+
 		key = cv::waitKey(1);
 	}
 }
